@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 # Вставь сюда свой токен Telegram
 TOKEN = '7544395313:AAF5Q52CV4_G2dEk5yU8RF-ipUodBJEBojQ'
 # Вставь сюда Telegram ID мамы
-ALLOWED_USERS = [123456789]
+ALLOWED_USERS = [slepenchuk99]
 
 bot = telebot.TeleBot(TOKEN)
 
