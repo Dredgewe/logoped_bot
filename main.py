@@ -1,16 +1,29 @@
-import telebot
-import sqlite3
 import os
+import sqlite3
+import telebot
 from datetime import datetime
 from flask import Flask, request
-from threading import Thread
 from telebot.types import ReplyKeyboardMarkup
 
 # --- Переменные окружения ---
 TOKEN = os.getenv("TOKEN")
-ALLOWED_USERS = list(map(int, os.getenv("ALLOWED_USERS").split(",")))
+ALLOWED_USERS = list(map(int, os.getenv("ALLOWED_USERS", "").split(",")))
 
 bot = telebot.TeleBot(TOKEN)
+app = Flask(__name__)
+
+# --- Webhook обработка ---
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    json_str = request.get_data().decode("utf-8")
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
+
+@app.route("/")
+def home():
+    return "Бот работает!"
+
 
 # --- База данных ---
 conn = sqlite3.connect("logoped_bot.db", check_same_thread=False)
@@ -29,6 +42,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS sessions (
 )''')
 conn.commit()
 
+
 # --- Главное меню ---
 def main_menu():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -39,7 +53,8 @@ def main_menu():
     markup.add("▶️ Главное меню")
     return markup
 
-# --- Обработчики ---
+
+# --- Команды и обработчики ---
 @bot.message_handler(commands=["start"])
 def handle_start(message):
     if message.chat.id not in ALLOWED_USERS:
@@ -200,18 +215,10 @@ def weekly_report(message):
     else:
         bot.send_message(message.chat.id, "🕒 Записей на неделю нет.")
 
-# --- Flask сервер для webhook ---
-app = Flask(__name__)
+# --- Установка Webhook ---
+WEBHOOK_URL = f"https://{os.getenv('ALWAYSDATA_DOMAIN')}/{TOKEN}"
+bot.remove_webhook()
+bot.set_webhook(url=WEBHOOK_URL)
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Я жив!"
-
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
-    bot.process_new_updates([update])
-    return "!", 200
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+# Экспортируем приложение
+application = app
